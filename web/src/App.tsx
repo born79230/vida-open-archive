@@ -35,6 +35,7 @@ type Article = {
   blocks: Array<TextBlock | ImageBlock>
   content: string
   excerpt: string
+  summary: string
   imageCount: number
   hasImages: boolean
 }
@@ -382,6 +383,17 @@ function DetailPage({
                 </span>
               </div>
             </header>
+
+            {article.summary ? (
+              <div className="mt-5 rounded-xl border border-[rgba(82,59,38,0.12)] bg-[rgba(82,59,38,0.04)] px-5 py-4 sm:mt-6 sm:px-6 sm:py-5">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-[hsl(var(--muted-foreground))]">
+                  摘要
+                </div>
+                <p className="text-[14px] leading-7 text-[hsl(var(--foreground))] sm:text-[15px]">
+                  {normalizeBlockText(article.summary)}
+                </p>
+              </div>
+            ) : null}
 
             <div className="article-prose mt-6 sm:mt-8">
               {article.blocks.map((block, index) => {

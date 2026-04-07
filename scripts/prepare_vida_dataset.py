@@ -10,6 +10,9 @@ from typing import Optional
 
 
 PAGE_HEADER_RE = re.compile(r"^## 第\s+(\d+)\s+页\s*$", re.M)
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？])\s*")
+SUMMARY_TARGET_LENGTH = 200
+SUMMARY_MIN_LENGTH = 60
 ARTICLE_ID_LINE_RE = re.compile(r"^(\d+)\s*:\s*(https?://\S+)\s*$")
 ARTICLE_HEADER_RE = re.compile(r"^第\s*(\d+)\s*篇\s*:\s*(https?://\S+)\s*$")
 META_RE = re.compile(r"赞同数\s*:\s*\((\d+)赞同\)\s*创建时间\s*:\s*\((\d{4}-\d{2}-\d{2})\)")
@@ -82,6 +85,41 @@ def split_pages(markdown: str) -> list[dict]:
     return pages
 
 
+def extract_summary(blocks: list[dict]) -> str:
+    """Return an extractive summary from a list of content blocks."""
+    sentences: list[str] = []
+    for block in blocks:
+        if block.get("type") != "text":
+            continue
+        text = block["text"].replace("\r", "").replace("\n", " ").strip()
+        if not text:
+            continue
+        for part in SENTENCE_SPLIT_RE.split(text):
+            part = part.strip()
+            if part:
+                sentences.append(part)
+
+    if not sentences:
+        return ""
+
+    full = "".join(sentences)
+    if len(full) <= SUMMARY_MIN_LENGTH:
+        return full
+
+    accumulated: list[str] = []
+    total = 0
+    for sentence in sentences:
+        accumulated.append(sentence)
+        total += len(sentence)
+        if total >= SUMMARY_TARGET_LENGTH:
+            break
+
+    summary = "".join(accumulated)
+    if len(summary) > SUMMARY_TARGET_LENGTH + 50:
+        summary = summary[: SUMMARY_TARGET_LENGTH + 50].rstrip() + "…"
+    return summary
+
+
 def finalize_article(article: Optional[dict], articles: list[dict]) -> None:
     if article is None:
         return
@@ -94,6 +132,7 @@ def finalize_article(article: Optional[dict], articles: list[dict]) -> None:
         (block["text"] for block in article["blocks"] if block["type"] == "text"),
         "",
     )[:180]
+    article["summary"] = extract_summary(article["blocks"])
     article["imageCount"] = sum(1 for block in article["blocks"] if block["type"] == "image")
     article["hasImages"] = article["imageCount"] > 0
     articles.append(article)
